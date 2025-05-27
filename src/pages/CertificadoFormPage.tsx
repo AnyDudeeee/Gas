@@ -60,7 +60,7 @@ const CertificadoFormPage: React.FC = () => {
     }
   };
   
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!validateForm()) {
@@ -69,19 +69,24 @@ const CertificadoFormPage: React.FC = () => {
     
     setIsSaving(true);
     
-    setTimeout(() => {
-      try {
-        addCertificado({
-          ...formData,
-          fechaCaducidad
-        });
-        
+    try {
+      // Add the certificate with the calculated expiry date
+      const certificadoId = addCertificado({
+        ...formData,
+        fechaCaducidad
+      });
+      
+      if (certificadoId) {
         navigate('/certificados');
-      } catch (error) {
-        console.error('Error saving certificate:', error);
+      } else {
+        setErrors({ submit: 'Error al crear el certificado' });
         setIsSaving(false);
       }
-    }, 500);
+    } catch (error) {
+      console.error('Error creating certificate:', error);
+      setErrors({ submit: 'Error al crear el certificado' });
+      setIsSaving(false);
+    }
   };
   
   return (
@@ -152,7 +157,7 @@ const CertificadoFormPage: React.FC = () => {
               
               <div className="space-y-2">
                 <label htmlFor="fechaCaducidad" className="block text-sm font-medium text-gray-700">
-                  Fecha de caducidad (5 años)
+                  Fecha de caducidad ({config.certificados.validez_años} años)
                 </label>
                 <div className="relative">
                   <input
@@ -202,6 +207,12 @@ const CertificadoFormPage: React.FC = () => {
                   </p>
                 </div>
               )}
+              
+              {errors.submit && (
+                <div className="md:col-span-2 p-4 bg-red-50 rounded-md">
+                  <p className="text-sm text-red-600">{errors.submit}</p>
+                </div>
+              )}
             </div>
             
             <div className="mt-8 flex justify-end">
@@ -221,8 +232,8 @@ const CertificadoFormPage: React.FC = () => {
               >
                 {isSaving ? (
                   <>
-                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white\" xmlns="http://www.w3.org/2000/svg\" fill="none\" viewBox="0 0 24 24">
-                      <circle className="opacity-25\" cx="12\" cy="12\" r="10\" stroke="currentColor\" strokeWidth="4"></circle>
+                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                     </svg>
                     Guardando...
