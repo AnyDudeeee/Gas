@@ -14,11 +14,12 @@ import {
   Calendar, 
   CheckCircle2,
   Clock,
-  XCircle
+  XCircle,
+  RefreshCw
 } from 'lucide-react';
 
 const DashboardPage: React.FC = () => {
-  const { stats, certificados, clientes, isLoading } = useApp();
+  const { stats, certificados, clientes, isLoading, refreshStats } = useApp();
   const [monthlyData, setMonthlyData] = useState<{ labels: string[]; data: number[] }>({
     labels: [],
     data: []
@@ -27,36 +28,48 @@ const DashboardPage: React.FC = () => {
     labels: ['Vigentes', 'Próximos a vencer', 'Vencidos'],
     data: [0, 0, 0]
   });
+  const [isRefreshing, setIsRefreshing] = useState(false);
   
   useEffect(() => {
     if (!isLoading) {
-      // Generate monthly data for the bar chart (last 6 months)
-      const months: string[] = [];
-      const data: number[] = [];
-      
-      const today = new Date();
-      for (let i = 5; i >= 0; i--) {
-        const month = new Date(today.getFullYear(), today.getMonth() - i, 1);
-        months.push(getMonthName(month));
-        
-        // Count certificates issued in this month
-        const count = certificados.filter(cert => {
-          const date = new Date(cert.fechaEmision);
-          return date.getMonth() === month.getMonth() && date.getFullYear() === month.getFullYear();
-        }).length;
-        
-        data.push(count);
-      }
-      
-      setMonthlyData({ labels: months, data });
-      
-      // Update certificate status data
-      setCertificadosEstados({
-        labels: ['Vigentes', 'Próximos a vencer', 'Vencidos'],
-        data: [stats.certificadosVigentes, stats.certificadosProximos, stats.certificadosVencidos]
-      });
+      updateDashboardData();
     }
   }, [isLoading, certificados, stats]);
+  
+  const updateDashboardData = () => {
+    // Generate monthly data for the bar chart (last 6 months)
+    const months: string[] = [];
+    const data: number[] = [];
+    
+    const today = new Date();
+    for (let i = 5; i >= 0; i--) {
+      const month = new Date(today.getFullYear(), today.getMonth() - i, 1);
+      months.push(getMonthName(month));
+      
+      // Count certificates issued in this month
+      const count = certificados.filter(cert => {
+        const date = new Date(cert.fechaEmision);
+        return date.getMonth() === month.getMonth() && date.getFullYear() === month.getFullYear();
+      }).length;
+      
+      data.push(count);
+    }
+    
+    setMonthlyData({ labels: months, data });
+    
+    // Update certificate status data
+    setCertificadosEstados({
+      labels: ['Vigentes', 'Próximos a vencer', 'Vencidos'],
+      data: [stats.certificadosVigentes, stats.certificadosProximos, stats.certificadosVencidos]
+    });
+  };
+  
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    refreshStats();
+    updateDashboardData();
+    setTimeout(() => setIsRefreshing(false), 1000);
+  };
   
   // Get certificates about to expire
   const proximosVencer = certificados
@@ -80,9 +93,22 @@ const DashboardPage: React.FC = () => {
       <Navbar />
       
       <main className="flex-1 p-4 md:p-6">
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold text-gray-800">Dashboard</h1>
-          <p className="text-gray-600">Bienvenido al sistema de gestión de revisiones de gas</p>
+        <div className="flex justify-between items-center mb-6">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-800">Dashboard</h1>
+            <p className="text-gray-600">Bienvenido al sistema de gestión de revisiones de gas</p>
+          </div>
+          
+          <button
+            onClick={handleRefresh}
+            disabled={isRefreshing}
+            className={`flex items-center px-4 py-2 rounded-md text-gray-600 hover:bg-gray-200 transition-colors ${
+              isRefreshing ? 'opacity-50 cursor-not-allowed' : ''
+            }`}
+          >
+            <RefreshCw className={`h-5 w-5 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
+            Actualizar
+          </button>
         </div>
         
         {/* Stats Section */}
@@ -96,7 +122,11 @@ const DashboardPage: React.FC = () => {
             title="Revisiones este Mes"
             value={stats.revisionesEsteMes}
             icon={<FileCheck className="h-6 w-6" />}
-            trend={{ value: 12, isPositive: true }}
+            trend={{ 
+              value: stats.revisionesEsteMes > 0 ? 
+                Math.round((stats.revisionesEsteMes / stats.totalClientes) * 100) : 0, 
+              isPositive: true 
+            }}
           />
           <Stat
             title="Revisiones Año Actual"
