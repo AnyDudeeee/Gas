@@ -36,10 +36,30 @@ interface AppContextType {
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
+// Local Storage Keys
+const STORAGE_KEYS = {
+  CLIENTES: 'gas_app_clientes',
+  CERTIFICADOS: 'gas_app_certificados',
+  CONFIG: 'gas_app_config',
+  CERT_COUNTER: 'gas_app_cert_counter'
+};
+
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [config, setConfig] = useState<Config>(defaultConfig);
-  const [clientes, setClientes] = useState<Cliente[]>([]);
-  const [certificados, setCertificados] = useState<Certificado[]>([]);
+  const [config, setConfig] = useState<Config>(() => {
+    const savedConfig = localStorage.getItem(STORAGE_KEYS.CONFIG);
+    return savedConfig ? JSON.parse(savedConfig) : defaultConfig;
+  });
+  
+  const [clientes, setClientes] = useState<Cliente[]>(() => {
+    const savedClientes = localStorage.getItem(STORAGE_KEYS.CLIENTES);
+    return savedClientes ? JSON.parse(savedClientes) : generateMockClientes();
+  });
+  
+  const [certificados, setCertificados] = useState<Certificado[]>(() => {
+    const savedCertificados = localStorage.getItem(STORAGE_KEYS.CERTIFICADOS);
+    return savedCertificados ? JSON.parse(savedCertificados) : generateMockCertificados(clientes);
+  });
+  
   const [stats, setStats] = useState<DashboardStats>({
     totalClientes: 0,
     revisionesEsteMes: 0,
@@ -49,27 +69,33 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     certificadosProximos: 0,
     certificadosVencidos: 0
   });
+  
   const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [nextCertNumber, setNextCertNumber] = useState<number>(1001);
+  const [nextCertNumber, setNextCertNumber] = useState<number>(() => {
+    const savedCounter = localStorage.getItem(STORAGE_KEYS.CERT_COUNTER);
+    return savedCounter ? parseInt(savedCounter, 10) : 1001;
+  });
+  
+  // Save data to localStorage whenever it changes
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.CLIENTES, JSON.stringify(clientes));
+  }, [clientes]);
+  
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.CERTIFICADOS, JSON.stringify(certificados));
+  }, [certificados]);
+  
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.CONFIG, JSON.stringify(config));
+  }, [config]);
+  
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.CERT_COUNTER, nextCertNumber.toString());
+  }, [nextCertNumber]);
   
   // Initialize data
   useEffect(() => {
-    // Load mock data
-    const mockClientes = generateMockClientes(50);
-    const mockCertificados = generateMockCertificados(mockClientes);
-    const mockStats = generateMockDashboardStats(mockClientes, mockCertificados);
-    
-    setClientes(mockClientes);
-    setCertificados(mockCertificados);
-    setStats(mockStats);
-    
-    // Find the highest certificate number and set the next one
-    const highestNumber = mockCertificados.reduce((max, cert) => {
-      const num = parseInt(cert.numeroSerie.replace('CERT-', ''), 10);
-      return num > max ? num : max;
-    }, 1000);
-    
-    setNextCertNumber(highestNumber + 1);
+    setStats(generateMockDashboardStats(clientes, certificados));
     setIsLoading(false);
   }, []);
   
@@ -133,9 +159,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
   
   const deleteCliente = (id: string) => {
-    // In a real app, you might want to check if the client has certificates
-    // and handle those appropriately
     setClientes(prevClientes => prevClientes.filter(c => c.id !== id));
+    setCertificados(prevCerts => prevCerts.filter(c => c.clienteId !== id));
     refreshStats();
   };
   
@@ -210,7 +235,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const fechaEmision = now.toISOString();
     const fechaCaducidad = calculateExpiryDate(now, config.certificados.validez_años).toISOString();
     
-    // Create a new certificate based on the old one
     const newCertId = addCertificado({
       clienteId: certificado.clienteId,
       fechaEmision,

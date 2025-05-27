@@ -12,7 +12,7 @@ export const defaultConfig: Config = {
   },
   auth: {
     usuario: 'gestion',
-    password_hash: 'gestion123', // This would be hashed in a real application
+    password_hash: 'gestion123',
     session_timeout: 1800
   },
   certificados: {
@@ -21,70 +21,48 @@ export const defaultConfig: Config = {
   }
 };
 
-// Generate mock clients
-export const generateMockClientes = (count: number): Cliente[] => {
-  const clientes: Cliente[] = [];
+// Generate single example client
+export const generateMockClientes = (): Cliente[] => {
+  const id = uuidv4();
+  const createdAt = new Date().toISOString();
   
-  for (let i = 0; i < count; i++) {
-    const id = uuidv4();
-    const createdAt = new Date(Date.now() - Math.random() * 365 * 24 * 60 * 60 * 1000).toISOString();
-    
-    clientes.push({
-      id,
-      nombre: `Cliente ${i + 1}`,
-      telefono: `6${Math.floor(10000000 + Math.random() * 90000000)}`,
-      email: `cliente${i + 1}@example.com`,
-      direccion: `Calle Ejemplo ${i + 1}, 28001 Madrid`,
-      dni: `${Math.floor(10000000 + Math.random() * 90000000)}A`,
-      tipoInstalacion: Math.random() > 0.5 ? 'individual' : 'comunitaria',
-      tipoGas: ['natural', 'butano', 'propano'][Math.floor(Math.random() * 3)] as 'natural' | 'butano' | 'propano',
-      createdAt,
-      updatedAt: createdAt
-    });
-  }
-  
-  return clientes;
+  return [{
+    id,
+    nombre: 'Cliente Ejemplo',
+    telefono: '600123456',
+    email: 'cliente@ejemplo.com',
+    direccion: 'Calle Ejemplo 1, 28001 Madrid',
+    dni: '12345678A',
+    tipoInstalacion: 'individual',
+    tipoGas: 'natural',
+    createdAt,
+    updatedAt: createdAt
+  }];
 };
 
-// Generate mock certificates
+// Generate example certificate for the client
 export const generateMockCertificados = (clientes: Cliente[]): Certificado[] => {
-  const certificados: Certificado[] = [];
+  if (clientes.length === 0) return [];
+  
   const now = new Date();
-  let counter = 1001;
+  const emissionDate = now;
+  const expiryDate = new Date(now);
+  expiryDate.setFullYear(now.getFullYear() + 5);
   
-  clientes.forEach(cliente => {
-    // Random date in the past 4 years
-    const emissionDate = new Date(now.getTime() - Math.random() * 4 * 365 * 24 * 60 * 60 * 1000);
-    const expiryDate = new Date(emissionDate);
-    expiryDate.setFullYear(emissionDate.getFullYear() + 5);
-    
-    // Calculate status
-    let estado: 'vigente' | 'proximo' | 'vencido' = 'vigente';
-    const daysUntilExpiry = Math.floor((expiryDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-    
-    if (daysUntilExpiry < 0) {
-      estado = 'vencido';
-    } else if (daysUntilExpiry < 90) {
-      estado = 'proximo';
-    }
-    
-    certificados.push({
-      id: uuidv4(),
-      numeroSerie: `CERT-${counter++}`,
-      clienteId: cliente.id,
-      fechaEmision: emissionDate.toISOString(),
-      fechaCaducidad: expiryDate.toISOString(),
-      observacionesTecnicas: Math.random() > 0.7 ? 'Instalación en buen estado general.' : undefined,
-      estado,
-      createdAt: emissionDate.toISOString(),
-      updatedAt: emissionDate.toISOString()
-    });
-  });
-  
-  return certificados;
+  return [{
+    id: uuidv4(),
+    numeroSerie: 'CERT-1001',
+    clienteId: clientes[0].id,
+    fechaEmision: emissionDate.toISOString(),
+    fechaCaducidad: expiryDate.toISOString(),
+    observacionesTecnicas: 'Instalación en buen estado general.',
+    estado: 'vigente',
+    createdAt: now.toISOString(),
+    updatedAt: now.toISOString()
+  }];
 };
 
-// Generate mock dashboard stats
+// Generate dashboard stats
 export const generateMockDashboardStats = (clientes: Cliente[], certificados: Certificado[]): DashboardStats => {
   const now = new Date();
   const currentMonth = now.getMonth();
